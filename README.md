@@ -1,6 +1,15 @@
-# SmartFetch
+<h1 align="center">SmartFetch</h1>
 
-**SmartFetch** is a fast, lightweight Linux system information fetch tool written in C. It displays hardware details, OS specs, kernel, uptime, memory usage, and thermal stats alongside dynamic distro ASCII art directly in your terminal.
+<p align="center">
+A lightweight and fast system information tool written in C.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/license/Saul-Goodman6/SmartFetch?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/github/stars/Saul-Goodman6/SmartFetch?style=for-the-badge" alt="Stars">
+  <img src="https://img.shields.io/github/forks/Saul-Goodman6/SmartFetch?style=for-the-badge" alt="Forks">
+  <img src="https://img.shields.io/github/issues/Saul-Goodman6/SmartFetch?style=for-the-badge" alt="Issues">
+</p>
 
 ---
 
