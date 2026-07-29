@@ -1,0 +1,6 @@
+# Compiled object files
+*.o
+C_code/*.o
+
+# Executables
+sfetch

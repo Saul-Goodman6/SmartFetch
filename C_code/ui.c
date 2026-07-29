@@ -212,7 +212,6 @@ void check_for_update(void) {
         printf("Current version : %s\n", SF_VERSION);
         printf("Latest version  : %.7s\n", remote_hash);
         printf("\nTo update, go to the project folder and run:\n");
-        printf("  git pull origin main\n");
-        printf("  ./install.sh\n");
+        printf("To update run: git pull origin main && make && make install\n");
     }
 }
