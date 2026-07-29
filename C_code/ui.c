@@ -76,45 +76,6 @@ static FILE *open_ascii_file(const char *exe_dir, const char *ascii_name) {
     return fopen(path, "r");
 }
 
-void collect_system_data(SystemData *data) {
-    get_cmd("grep -E '^PRETTY_NAME=' /etc/os-release | cut -d= -f2 | tr -d '\"'", data->os_name, sizeof(data->os_name));
-    get_cmd("uname -r", data->kernel, sizeof(data->kernel));
-    get_cmd("lscpu | grep 'Model name' | awk -F: '{print $2}' | xargs", data->cpu_name, sizeof(data->cpu_name));
-
-    get_cmd("sensors 2>/dev/null | grep -iE 'package id 0|tctl|tdie|core 0' | head -n1 | grep -oE '[+-]?[0-9]+\\.[0-9]+°C' | head -n1", data->cpu_temp, sizeof(data->cpu_temp));
-    if (strcmp(data->cpu_temp, "N/A") == 0 || strlen(data->cpu_temp) == 0) {
-        get_cmd("for z in /sys/class/thermal/thermal_zone*; do t=$(cat \"$z/type\" 2>/dev/null); if echo \"$t\" | grep -qiE 'x86_pkg_temp|cpu'; then awk '{printf \"%.1f°C\", $1/1000}' \"$z/temp\"; break; fi; done", data->cpu_temp, sizeof(data->cpu_temp));
-    }
-    if (strcmp(data->cpu_temp, "N/A") == 0 || strlen(data->cpu_temp) == 0) {
-        get_cmd("cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null | awk '{printf \"%.1f°C\", $1/1000}'", data->cpu_temp, sizeof(data->cpu_temp));
-    }
-
-    char ram_total_val[16], ram_used[16];
-    get_cmd("free -h | grep Mem | awk '{print $2}' | awk -F'(' '{print $1}' | xargs", ram_total_val, sizeof(ram_total_val));
-    get_cmd("free -h | grep Mem | awk '{print $3}'", ram_used, sizeof(ram_used));
-    snprintf(data->ram_total, sizeof(data->ram_total), "%s / %s", ram_used, ram_total_val);
-
-    get_cmd("dmidecode --type memory 2>/dev/null | grep -E '^[[:space:]]*Type:[[:space:]]' | grep -v 'Unknown' | head -n1 | awk '{print $2}'", data->ram_type, sizeof(data->ram_type));
-    get_cmd("df -h --output=source,fstype,used,size / 2>/dev/null | tail -n1 | awk '{printf \"%s (%s) %s/%s\", $1, $2, $3, $4}'", data->storage_info, sizeof(data->storage_info));
-
-    get_cmd("lspci 2>/dev/null | grep -Ei 'vga compatible controller|3d controller' | head -n1 | sed -E 's/^[0-9a-f:.]+ (VGA compatible controller|3D controller): //I'", data->gpu_type, sizeof(data->gpu_type));
-
-    get_cmd("basename \"$SHELL\" 2>/dev/null", data->shell_info, sizeof(data->shell_info));
-
-    get_cmd("if command -v flatpak >/dev/null 2>&1; then flatpak list --app 2>/dev/null | wc -l; else echo N/A; fi", data->flatpak_count, sizeof(data->flatpak_count));
-
-    get_cmd("xrandr 2>/dev/null | grep '*' | awk '{print $1}' | head -n1", data->screen_info, sizeof(data->screen_info));
-    if (strcmp(data->screen_info, "N/A") == 0 || strlen(data->screen_info) == 0) {
-        get_cmd("wlr-randr 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -n1", data->screen_info, sizeof(data->screen_info));
-    }
-    if (strcmp(data->screen_info, "N/A") == 0 || strlen(data->screen_info) == 0) {
-        get_cmd("for c in /sys/class/drm/*/status; do if [ \"$(cat \"$c\" 2>/dev/null)\" = \"connected\" ]; then d=$(dirname \"$c\"); if [ -f \"$d/modes\" ]; then head -n1 \"$d/modes\"; break; fi; fi; done", data->screen_info, sizeof(data->screen_info));
-    }
-
-    get_cmd("stat -c %w / 2>/dev/null | cut -d' ' -f1", data->os_age, sizeof(data->os_age));
-    get_cmd("uptime -p | sed 's/up //'", data->os_uptime, sizeof(data->os_uptime));
-}
-
 void render_ui(const SystemData *data) {
     char exe_dir[PATH_MAX];
     get_exe_dir(exe_dir, sizeof(exe_dir));
@@ -153,6 +114,7 @@ void render_ui(const SystemData *data) {
     }
 
     char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH];
+    memset(info_lines, 0, sizeof(info_lines));
     snprintf(info_lines[0], SF_LINE_WIDTH, "\033[1;36m%s\033[0m@\033[1;36m%s\033[0m", username, hostname);
     
     int user_host_len = strlen(username) + strlen(hostname) + 1;
@@ -214,11 +176,11 @@ void render_ui(const SystemData *data) {
 
 void print_help(void) {
     printf("SmartFetch (sfetch) - v%s\n", SF_VERSION);
-    printf("أداة سريعة تعرض معلومات النظام مع شعار ASCII للتوزيعة.\n\n");
-    printf("الاستخدام:\n");
-    printf("  sfetch                  اعرض معلومات النظام\n");
-    printf("  sfetch -h, --help       اعرض هذه الرسالة\n");
-    printf("  sfetch -u, --update     تحقق من وجود تحديث جديد على GitHub\n");
+    printf("A fast tool to display system information with distro ASCII logo.\n\n");
+    printf("Usage:\n");
+    printf("  sfetch                  Display system information\n");
+    printf("  sfetch -h, --help       Display this help message\n");
+    printf("  sfetch -u, --update     Check for new updates on GitHub\n");
 }
 
 void check_for_update(void) {
@@ -231,25 +193,25 @@ void check_for_update(void) {
     get_cmd(cmd, remote_hash, sizeof(remote_hash));
 
     if (strcmp(remote_hash, "N/A") == 0 || strlen(remote_hash) == 0) {
-        printf("تعذر التحقق من التحديثات.\n");
-        printf("تأكد من اتصالك بالإنترنت وأن git مثبت على جهازك.\n");
+        printf("Could not check for updates.\n");
+        printf("Make sure you are connected to the internet and git is installed.\n");
         return;
     }
 
     if (strcmp(SF_VERSION, "unknown") == 0) {
-        printf("لا يمكن معرفة نسختك الحالية (تم تنصيبها بدون معلومات git).\n");
-        printf("آخر نسخة على GitHub: %.7s\n", remote_hash);
-        printf("لتحديثها نفّذ: git pull origin main && ./install.sh\n");
+        printf("Cannot determine current version (installed without git info).\n");
+        printf("Latest version on GitHub: %.7s\n", remote_hash);
+        printf("To update run: git pull origin main && ./install.sh\n");
         return;
     }
 
     if (strncmp(remote_hash, SF_VERSION, strlen(SF_VERSION)) == 0) {
-        printf("أنت على آخر تحديث (%s).\n", SF_VERSION);
+        printf("You are on the latest version (%s).\n", SF_VERSION);
     } else {
-        printf("في تحديث جديد متوفر!\n");
-        printf("نسختك الحالية : %s\n", SF_VERSION);
-        printf("آخر نسخة      : %.7s\n", remote_hash);
-        printf("\nلتحديثها، روح لمجلد المشروع ونفّذ:\n");
+        printf("A new update is available!\n");
+        printf("Current version : %s\n", SF_VERSION);
+        printf("Latest version  : %.7s\n", remote_hash);
+        printf("\nTo update, go to the project folder and run:\n");
         printf("  git pull origin main\n");
         printf("  ./install.sh\n");
     }

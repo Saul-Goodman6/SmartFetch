@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        printf("خيار غير معروف: %s\n\n", argv[1]);
+        printf("Unknown option: %s\n\n", argv[1]);
         print_help();
         return 1;
     }
