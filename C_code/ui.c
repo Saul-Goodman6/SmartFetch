@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <pwd.h>
 #include "sysinfo.h"
 
 #ifndef PATH_MAX
@@ -107,12 +108,13 @@ void render_ui(const SystemData *data) {
     get_exe_dir(exe_dir, sizeof(exe_dir));
 
     const char *ascii_name = "default_ascii.txt";
+
     if (strstr(data->os_name, "Arch") != NULL || strstr(data->os_name, "arch") != NULL) {
         ascii_name = "arch_ascii.txt";
-    } else if (strstr(data->os_name, "Debian") != NULL || strstr(data->os_name, "debian") != NULL) {
-        ascii_name = "debian_ascii.txt";
     } else if (strstr(data->os_name, "Fedora") != NULL || strstr(data->os_name, "fedora") != NULL) {
         ascii_name = "fedora_ascii.txt";
+    } else if (strstr(data->os_name, "Debian GNU/Linux") != NULL || strstr(data->os_name, "debian") != NULL) {
+        ascii_name = "debian_ascii.txt";
     }
 
     FILE *ascii_fp = open_ascii_file(exe_dir, ascii_name);
@@ -123,17 +125,23 @@ void render_ui(const SystemData *data) {
     printf("\n");
 
     char hostname[HOST_NAME_MAX];
-    char *username = getenv("USER");
-    if (username == NULL) username = getlogin();
-    if (username == NULL) username = "user";
+    char *username = NULL;
 
-    if (gethostname(hostname, sizeof(hostname)) != 0) {
-        snprintf(hostname, sizeof(hostname), "pc");
+    struct passwd *pw = getpwuid(getuid());
+    if (pw && pw->pw_name) {
+        username = pw->pw_name;
+    } else {
+        username = getenv("USER");
+        if (username == NULL) username = getlogin();
+        if (username == NULL) username = "user";
+    }
+
+    if (gethostname(hostname, sizeof(hostname)) != 0 || strlen(hostname) == 0) {
+        snprintf(hostname, sizeof(hostname), "smartfetch");
     }
 
     char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH];
     snprintf(info_lines[0], SF_LINE_WIDTH, "\033[1;36m%s\033[0m@\033[1;36m%s\033[0m", username, hostname);
-    
     
     int user_host_len = strlen(username) + strlen(hostname) + 1;
     char separator[128] = "";
