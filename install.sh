@@ -2,7 +2,9 @@
 
 echo "Compiling and installing SmartFetch..."
 
-gcc C_code/main.c C_code/ui.c -I./H_code -o sfetch
+GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+gcc C_code/main.c C_code/ui.c -I./H_code -DSF_VERSION=\"$GIT_HASH\" -o sfetch
 
 if [ $? -ne 0 ]; then
     echo "Error: Compilation failed."

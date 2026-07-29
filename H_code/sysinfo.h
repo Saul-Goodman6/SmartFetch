@@ -1,9 +1,14 @@
 #ifndef SYSINFO_H
 #define SYSINFO_H
 
+#ifndef SF_VERSION
+#define SF_VERSION "unknown"
+#endif
+
 #define SF_LINE_COUNT 15
 #define SF_LINE_WIDTH 512
 #define SF_ASCII_WIDTH 45
+#define SF_REPO_URL "https://github.com/Saul-Goodman6/SmartFetch.git"
 
 typedef struct {
     char os_name[64];
@@ -26,5 +31,9 @@ typedef struct {
 void collect_system_data(SystemData *data);
 
 void render_ui(const SystemData *data);
+
+void print_help(void);
+
+void check_for_update(void);
 
 #endif

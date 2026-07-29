@@ -211,3 +211,46 @@ void render_ui(const SystemData *data) {
     if (ascii_fp) fclose(ascii_fp);
     printf("\n");
 }
+
+void print_help(void) {
+    printf("SmartFetch (sfetch) - v%s\n", SF_VERSION);
+    printf("أداة سريعة تعرض معلومات النظام مع شعار ASCII للتوزيعة.\n\n");
+    printf("الاستخدام:\n");
+    printf("  sfetch                  اعرض معلومات النظام\n");
+    printf("  sfetch -h, --help       اعرض هذه الرسالة\n");
+    printf("  sfetch -u, --update     تحقق من وجود تحديث جديد على GitHub\n");
+}
+
+void check_for_update(void) {
+    char remote_hash[64];
+    char cmd[256];
+
+    snprintf(cmd, sizeof(cmd),
+        "git ls-remote %s refs/heads/main 2>/dev/null | awk '{print $1}'",
+        SF_REPO_URL);
+    get_cmd(cmd, remote_hash, sizeof(remote_hash));
+
+    if (strcmp(remote_hash, "N/A") == 0 || strlen(remote_hash) == 0) {
+        printf("تعذر التحقق من التحديثات.\n");
+        printf("تأكد من اتصالك بالإنترنت وأن git مثبت على جهازك.\n");
+        return;
+    }
+
+    if (strcmp(SF_VERSION, "unknown") == 0) {
+        printf("لا يمكن معرفة نسختك الحالية (تم تنصيبها بدون معلومات git).\n");
+        printf("آخر نسخة على GitHub: %.7s\n", remote_hash);
+        printf("لتحديثها نفّذ: git pull origin main && ./install.sh\n");
+        return;
+    }
+
+    if (strncmp(remote_hash, SF_VERSION, strlen(SF_VERSION)) == 0) {
+        printf("أنت على آخر تحديث (%s).\n", SF_VERSION);
+    } else {
+        printf("في تحديث جديد متوفر!\n");
+        printf("نسختك الحالية : %s\n", SF_VERSION);
+        printf("آخر نسخة      : %.7s\n", remote_hash);
+        printf("\nلتحديثها، روح لمجلد المشروع ونفّذ:\n");
+        printf("  git pull origin main\n");
+        printf("  ./install.sh\n");
+    }
+}
