@@ -43,7 +43,7 @@
 
 Clone the repository and compile using `make`:
 
-```bash
+```bash ```
 git clone https://github.com/Saul-Goodman6/SmartFetch.git
 cd SmartFetch
 make
