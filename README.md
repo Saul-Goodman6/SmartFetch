@@ -18,10 +18,10 @@
 Clone the repository and run the installation script:
 
 ```bash
-git clone [https://github.com/Saul-Goodman6/SmartFetch.git](https://github.com/Saul-Goodman6/SmartFetch.git)
+git clone https://github.com/Saul-Goodman6/SmartFetch.git
 cd SmartFetch
 chmod +x install.sh
-./install.sh'
+./install.sh
 ```
 ## Usage
 
