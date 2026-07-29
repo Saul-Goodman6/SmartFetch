@@ -9,6 +9,10 @@
 #define PATH_MAX 4096
 #endif
 
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 256
+#endif
+
 static void get_cmd(const char *cmd, char *output, size_t size) {
     FILE *fp = popen(cmd, "r");
     if (fp) {
@@ -118,7 +122,6 @@ void render_ui(const SystemData *data) {
 
     printf("\n");
 
-    // جلب اسم المستخدم واسم الجهاز تلقائياً
     char hostname[HOST_NAME_MAX];
     char *username = getenv("USER");
     if (username == NULL) username = getlogin();
@@ -131,7 +134,7 @@ void render_ui(const SystemData *data) {
     char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH];
     snprintf(info_lines[0], SF_LINE_WIDTH, "\033[1;36m%s\033[0m@\033[1;36m%s\033[0m", username, hostname);
     
-    // إنشاء خط فاصل بطول اسم المستخدم والـ hostname
+    
     int user_host_len = strlen(username) + strlen(hostname) + 1;
     char separator[128] = "";
     for (int i = 0; i < user_host_len && i < 127; i++) {
