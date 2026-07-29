@@ -39,3 +39,4 @@ Linux System APIs & Utilities
 
 ## Example Of the project
 
+<img width="1366" height="768" alt="sfetch_in_fedora" src="https://github.com/user-attachments/assets/2ac6b5e4-b9fc-4436-9bea-db0b390622e0" />
