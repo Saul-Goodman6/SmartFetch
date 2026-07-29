@@ -1,8 +1,9 @@
-<img width="600" height="600" alt="smartfetch-logo" src="https://github.com/user-attachments/assets/604cc713-3ad8-4c61-a889-8b9aedd26341" />
 
 <h1 align="center">SmartFetch</h1>
 
 <p align="center">
+  <img width="500" height="500" alt="smartfetch-logo" src="https://github.com/user-attachments/assets/2cc55b49-ffb5-4ddc-9e70-eefc43bf9135" />
+
 A lightweight and fast system information tool written in C.
 </p>
 
