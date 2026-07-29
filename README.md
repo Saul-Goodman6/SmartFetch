@@ -44,6 +44,8 @@ chmod +x install.sh
 
 Once installed, simply execute:
 ``` sfetch ```
+<img width="800" height="449" alt="sfetch" src="https://github.com/user-attachments/assets/d19a24f8-54f9-4495-854e-adc46343c177" />
+
 
 ## Build With
 Bash
