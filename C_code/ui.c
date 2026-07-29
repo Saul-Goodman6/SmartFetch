@@ -81,7 +81,10 @@ void collect_system_data(SystemData *data) {
     get_cmd("uname -r", data->kernel, sizeof(data->kernel));
     get_cmd("lscpu | grep 'Model name' | awk -F: '{print $2}' | xargs", data->cpu_name, sizeof(data->cpu_name));
 
-    get_cmd("sensors 2>/dev/null | grep -iE 'package id|core 0|cpu' | head -n1 | awk '{print $4}' | tr -d '+'", data->cpu_temp, sizeof(data->cpu_temp));
+    get_cmd("sensors 2>/dev/null | grep -iE 'package id 0|tctl|tdie|core 0' | head -n1 | grep -oE '[+-]?[0-9]+\\.[0-9]+°C' | head -n1", data->cpu_temp, sizeof(data->cpu_temp));
+    if (strcmp(data->cpu_temp, "N/A") == 0 || strlen(data->cpu_temp) == 0) {
+        get_cmd("for z in /sys/class/thermal/thermal_zone*; do t=$(cat \"$z/type\" 2>/dev/null); if echo \"$t\" | grep -qiE 'x86_pkg_temp|cpu'; then awk '{printf \"%.1f°C\", $1/1000}' \"$z/temp\"; break; fi; done", data->cpu_temp, sizeof(data->cpu_temp));
+    }
     if (strcmp(data->cpu_temp, "N/A") == 0 || strlen(data->cpu_temp) == 0) {
         get_cmd("cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null | awk '{printf \"%.1f°C\", $1/1000}'", data->cpu_temp, sizeof(data->cpu_temp));
     }
@@ -91,12 +94,21 @@ void collect_system_data(SystemData *data) {
     get_cmd("free -h | grep Mem | awk '{print $3}'", ram_used, sizeof(ram_used));
     snprintf(data->ram_total, sizeof(data->ram_total), "%s / %s", ram_used, ram_total_val);
 
-    get_cmd("dmidecode --type memory 2>/dev/null | grep 'Type:' | grep -v 'Unknown' | head -n1 | awk '{print $2}'", data->ram_type, sizeof(data->ram_type));
-    get_cmd("lsblk -d -o NAME,SIZE,MODEL | grep -v 'loop' | tr '\n' ' '", data->storage_info, sizeof(data->storage_info));
+    get_cmd("dmidecode --type memory 2>/dev/null | grep -E '^[[:space:]]*Type:[[:space:]]' | grep -v 'Unknown' | head -n1 | awk '{print $2}'", data->ram_type, sizeof(data->ram_type));
+    get_cmd("df -h --output=source,fstype,used,size / 2>/dev/null | tail -n1 | awk '{printf \"%s (%s) %s/%s\", $1, $2, $3, $4}'", data->storage_info, sizeof(data->storage_info));
+
+    get_cmd("lspci 2>/dev/null | grep -Ei 'vga compatible controller|3d controller' | head -n1 | sed -E 's/^[0-9a-f:.]+ (VGA compatible controller|3D controller): //I'", data->gpu_type, sizeof(data->gpu_type));
+
+    get_cmd("basename \"$SHELL\" 2>/dev/null", data->shell_info, sizeof(data->shell_info));
+
+    get_cmd("if command -v flatpak >/dev/null 2>&1; then flatpak list --app 2>/dev/null | wc -l; else echo N/A; fi", data->flatpak_count, sizeof(data->flatpak_count));
 
     get_cmd("xrandr 2>/dev/null | grep '*' | awk '{print $1}' | head -n1", data->screen_info, sizeof(data->screen_info));
-    if (strcmp(data->screen_info, "N/A") == 0) {
+    if (strcmp(data->screen_info, "N/A") == 0 || strlen(data->screen_info) == 0) {
         get_cmd("wlr-randr 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -n1", data->screen_info, sizeof(data->screen_info));
+    }
+    if (strcmp(data->screen_info, "N/A") == 0 || strlen(data->screen_info) == 0) {
+        get_cmd("for c in /sys/class/drm/*/status; do if [ \"$(cat \"$c\" 2>/dev/null)\" = \"connected\" ]; then d=$(dirname \"$c\"); if [ -f \"$d/modes\" ]; then head -n1 \"$d/modes\"; break; fi; fi; done", data->screen_info, sizeof(data->screen_info));
     }
 
     get_cmd("stat -c %w / 2>/dev/null | cut -d' ' -f1", data->os_age, sizeof(data->os_age));
@@ -160,6 +172,9 @@ void render_ui(const SystemData *data) {
     snprintf(info_lines[8], SF_LINE_WIDTH, "\033[1;32mRAM      :\033[0m %s (%s)", data->ram_total, data->ram_type);
     snprintf(info_lines[9], SF_LINE_WIDTH, "\033[1;32mStorage  :\033[0m %s", data->storage_info);
     snprintf(info_lines[10], SF_LINE_WIDTH, "\033[1;32mDisplay  :\033[0m %s", data->screen_info);
+    snprintf(info_lines[11], SF_LINE_WIDTH, "\033[1;32mGPU      :\033[0m %s", data->gpu_type);
+    snprintf(info_lines[12], SF_LINE_WIDTH, "\033[1;32mShell    :\033[0m %s", data->shell_info);
+    snprintf(info_lines[13], SF_LINE_WIDTH, "\033[1;32mFlatpak  :\033[0m %s", data->flatpak_count);
 
     while (1) {
         char *got_ascii = NULL;
