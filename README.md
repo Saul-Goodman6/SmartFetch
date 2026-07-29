@@ -7,6 +7,8 @@
     width="300">
 </p>
 
+
+
 <p align="center">
   A lightweight, blazing-fast system information tool written in pure C.
 </p>
@@ -19,6 +21,13 @@
 </p>
 
 ---
+
+<p align="center">
+
+  <img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/31cc2325-4f74-4ec2-952c-351b5c446828" alt="Preview_Image" />
+
+  
+</p>
 
 ## Features
 
@@ -39,3 +48,5 @@ git clone https://github.com/Saul-Goodman6/SmartFetch.git
 cd SmartFetch
 make
 sudo make install
+
+<img width="800" height="449" alt="sfetch" src="https://github.com/user-attachments/assets/62994abe-982b-47eb-8827-0029a0fad86b" />
