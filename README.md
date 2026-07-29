@@ -48,8 +48,6 @@ Once installed, simply execute:
 
 
 ## Build With
-Bash
-sfetch
 🛠️ Built With
 C Language
 GCC Compiler
