@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  A lightweight and fast system information tool written in C.
+  A lightweight, blazing-fast system information tool written in pure C.
 </p>
 
 <p align="center">
@@ -22,37 +22,20 @@
 
 ## Features
 
-- **Blazing Fast:** Built with pure C for minimal resource usage and maximum performance.
+- **Blazing Fast:** Built with pure C and Direct System APIs for minimal resource usage and maximum performance.
 - **Dynamic ASCII Art:** Automatically detects your Linux distribution (`Fedora`, `Arch`, `Debian`, etc.) and renders the corresponding logo.
-- **System Insights:** Displays CPU specs, real-time temperatures, RAM usage, display resolution, disk space, and OS age.
-- **Easy Installation:** Includes an automated setup script for system-wide binary availability.
+- **Terminal Color Palette:** Displays a colorful 16-color block palette at the bottom for aesthetic screenshots.
+- **Detailed System Insights:** Displays CPU specs, real-time temperatures, RAM type & usage, display resolution, disk space, GPU, and OS age/uptime.
+- **Standard Build System:** Uses a clean `Makefile` for simple, scalable compilation across platforms.
 
 ---
 
-## Installation
+## Build & Installation
 
-Clone the repository and run the installation script:
+Clone the repository and compile using `make`:
 
 ```bash
-git clone https://github.com/Saul-Goodman6/SmartFetch.git
+git clone [https://github.com/Saul-Goodman6/SmartFetch.git](https://github.com/Saul-Goodman6/SmartFetch.git)
 cd SmartFetch
-chmod +x install.sh
-./install.sh
-```
-## Usage
-
-
-Once installed, simply execute:
-``` sfetch ```
-<img width="800" height="449" alt="sfetch" src="https://github.com/user-attachments/assets/d19a24f8-54f9-4495-854e-adc46343c177" />
-
-
-## Build With
-🛠️ Built With
-C Language
-GCC Compiler
-Linux System APIs & Utilities
-
-## Example Of the project
-
-<img width="1366" height="768" alt="sfetch_in_fedora" src="https://github.com/user-attachments/assets/2ac6b5e4-b9fc-4436-9bea-db0b390622e0" />
+make
+sudo make install
