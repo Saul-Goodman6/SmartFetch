@@ -159,7 +159,7 @@ static void get_ram_info(char *out, size_t size) {
     }
 }
 
-/* ---------- RAM type: minimal SMBIOS/DMI table parser ---------- */
+/* ---------- RAM type ---------- */
 static const char *mem_type_name(uint8_t t) {
     static const char *low_types[] = {
         NULL, "Other", "Unknown", "DRAM", "EDRAM", "VRAM", "SRAM", "RAM",
@@ -209,7 +209,7 @@ static void get_ram_type(char *out, size_t size) {
                 break;
             }
         }
-        if (type == 127) break; /* end-of-table marker */
+        if (type == 127) break;
 
         size_t str_off = offset + length;
         while (str_off + 1 < n && !(buf[str_off] == 0 && buf[str_off + 1] == 0)) {
@@ -224,7 +224,7 @@ static void get_ram_type(char *out, size_t size) {
     }
 }
 
-/* ---------- Storage: root filesystem device, type, usage ---------- */
+/* ---------- Storage info ---------- */
 static void get_storage_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
 
@@ -263,7 +263,7 @@ static void get_storage_info(char *out, size_t size) {
     snprintf(out, size, "%s (%s) %.1fG/%.1fG", device, fstype, used_gb, total_gb);
 }
 
-/* ---------- Screen resolution: /sys/class/drm ---------- */
+/* ---------- Screen info ---------- */
 static void get_screen_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
 
@@ -304,7 +304,7 @@ static void get_screen_info(char *out, size_t size) {
     closedir(d);
 }
 
-/* ---------- GPU: /sys/bus/pci + optional pci.ids name lookup ---------- */
+/* ---------- GPU info ---------- */
 static int pci_ids_lookup(const char *path, unsigned vendor, unsigned device,
                            char *vname, size_t vname_size, char *dname, size_t dname_size) {
     FILE *fp = fopen(path, "r");
@@ -369,7 +369,7 @@ static void get_gpu_info(char *out, size_t size) {
         fclose(cf);
         if (!ok) continue;
 
-        if (((class_code >> 16) & 0xFF) != 0x03) continue; /* display controller class */
+        if (((class_code >> 16) & 0xFF) != 0x03) continue;
 
         char vendor_path[PATH_MAX], device_path[PATH_MAX];
         snprintf(vendor_path, sizeof(vendor_path), "/sys/bus/pci/devices/%s/vendor", entry->d_name);
@@ -402,7 +402,7 @@ static void get_gpu_info(char *out, size_t size) {
     closedir(d);
 }
 
-/* ---------- Shell: $SHELL env var ---------- */
+/* ---------- Shell info ---------- */
 static void get_shell_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
     const char *shell = getenv("SHELL");
@@ -413,7 +413,7 @@ static void get_shell_info(char *out, size_t size) {
     out[size - 1] = '\0';
 }
 
-/* ---------- Flatpak app count: count entries under flatpak app dirs ---------- */
+/* ---------- Flatpak count ---------- */
 static int count_dir_entries(const char *path) {
     DIR *d = opendir(path);
     if (!d) return -1;
@@ -449,7 +449,7 @@ static void get_flatpak_count(char *out, size_t size) {
     }
 }
 
-/* ---------- OS age: filesystem birth time via statx ---------- */
+/* ---------- OS age ---------- */
 static void get_os_age(char *out, size_t size) {
     strncpy(out, "N/A", size);
     struct statx stx;
@@ -461,7 +461,7 @@ static void get_os_age(char *out, size_t size) {
     }
 }
 
-/* ---------- Uptime: /proc/uptime ---------- */
+/* ---------- Uptime ---------- */
 static void get_os_uptime(char *out, size_t size) {
     strncpy(out, "N/A", size);
     FILE *fp = fopen("/proc/uptime", "r");
@@ -501,7 +501,39 @@ static void get_os_uptime(char *out, size_t size) {
     out[size - 1] = '\0';
 }
 
-/* ---------- Entry point ---------- */
+/* ---------- Progress Bar Generator ---------- */
+void make_progress_bar(char *out, size_t size, double percentage, int width) {
+    if (percentage < 0) percentage = 0;
+    if (percentage > 100) percentage = 100;
+
+    int filled = (int)((percentage / 100.0) * width);
+    char bar[128] = "";
+
+    strcat(bar, "[");
+    for (int i = 0; i < width; i++) {
+        if (i < filled) {
+            strcat(bar, "█");
+        } else {
+            strcat(bar, "░");
+        }
+    }
+    snprintf(out, size, "%s] %.0f%%", bar, percentage);
+}
+
+/* ---------- Color Palette Generator ---------- */
+void print_color_palette(void) {
+    printf("   ");
+    for (int i = 0; i < 8; i++) {
+        printf("\033[4%dm   \033[0m", i);
+    }
+    printf("\n   ");
+    for (int i = 0; i < 8; i++) {
+        printf("\033[10%dm   \033[0m", i);
+    }
+    printf("\n");
+}
+
+/* ---------- Collect Entry Point ---------- */
 void collect_system_data(SystemData *data) {
     get_os_name(data->os_name, sizeof(data->os_name));
     get_kernel(data->kernel, sizeof(data->kernel));

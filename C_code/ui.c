@@ -172,6 +172,10 @@ void render_ui(const SystemData *data) {
 
     if (ascii_fp) fclose(ascii_fp);
     printf("\n");
+
+    /* طباعة شريط الألوان في أسفل الشعار والمعلومات */
+    print_color_palette();
+    printf("\n");
 }
 
 void print_help(void) {
@@ -201,7 +205,7 @@ void check_for_update(void) {
     if (strcmp(SF_VERSION, "unknown") == 0) {
         printf("Cannot determine current version (installed without git info).\n");
         printf("Latest version on GitHub: %.7s\n", remote_hash);
-        printf("To update run: git pull origin main && ./install.sh\n");
+        printf("To update run: git pull origin main && make && sudo make install\n");
         return;
     }
 
@@ -212,6 +216,7 @@ void check_for_update(void) {
         printf("Current version : %s\n", SF_VERSION);
         printf("Latest version  : %.7s\n", remote_hash);
         printf("\nTo update, go to the project folder and run:\n");
-        printf("To update run: git pull origin main && make && make install\n");
+        printf("  git pull origin main\n");
+        printf("  make && sudo make install\n");
     }
 }

@@ -28,12 +28,14 @@ typedef struct {
     char pkgs_total[64];
 } SystemData;
 
+
 void collect_system_data(SystemData *data);
-
 void render_ui(const SystemData *data);
-
 void print_help(void);
-
 void check_for_update(void);
+
+
+void print_color_palette(void);
+void make_progress_bar(char *out, size_t size, double percentage, int width);
 
 #endif
