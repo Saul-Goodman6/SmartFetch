@@ -173,7 +173,7 @@ void render_ui(const SystemData *data) {
     if (ascii_fp) fclose(ascii_fp);
     printf("\n");
 
-    /* طباعة شريط الألوان في أسفل الشعار والمعلومات */
+    
     print_color_palette();
     printf("\n");
 }
