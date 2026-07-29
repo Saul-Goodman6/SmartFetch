@@ -59,17 +59,14 @@ static int visible_len(const char *s) {
 static FILE *open_ascii_file(const char *exe_dir, const char *ascii_name) {
     char path[PATH_MAX];
 
-    // 1. المسار العالمي النظامي
     snprintf(path, sizeof(path), "/usr/share/smartfetch/Ascii_art/%s", ascii_name);
     FILE *fp = fopen(path, "r");
     if (fp) return fp;
 
-    // 2. المسار بجانب التنفيذي
     snprintf(path, sizeof(path), "%sAscii_art/%s", exe_dir, ascii_name);
     fp = fopen(path, "r");
     if (fp) return fp;
 
-    // 3. مجلد العمل الحالي
     snprintf(path, sizeof(path), "Ascii_art/%s", ascii_name);
     return fopen(path, "r");
 }
@@ -121,9 +118,28 @@ void render_ui(const SystemData *data) {
 
     printf("\n");
 
+    // جلب اسم المستخدم واسم الجهاز تلقائياً
+    char hostname[HOST_NAME_MAX];
+    char *username = getenv("USER");
+    if (username == NULL) username = getlogin();
+    if (username == NULL) username = "user";
+
+    if (gethostname(hostname, sizeof(hostname)) != 0) {
+        snprintf(hostname, sizeof(hostname), "pc");
+    }
+
     char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH];
-    snprintf(info_lines[0], SF_LINE_WIDTH, "\033[1;36muser@smartfetch\033[0m");
-    snprintf(info_lines[1], SF_LINE_WIDTH, "-----------------------------------");
+    snprintf(info_lines[0], SF_LINE_WIDTH, "\033[1;36m%s\033[0m@\033[1;36m%s\033[0m", username, hostname);
+    
+    // إنشاء خط فاصل بطول اسم المستخدم والـ hostname
+    int user_host_len = strlen(username) + strlen(hostname) + 1;
+    char separator[128] = "";
+    for (int i = 0; i < user_host_len && i < 127; i++) {
+        separator[i] = '-';
+    }
+    separator[user_host_len] = '\0';
+
+    snprintf(info_lines[1], SF_LINE_WIDTH, "%s", separator);
     snprintf(info_lines[2], SF_LINE_WIDTH, "\033[1;32mOS       :\033[0m %s", data->os_name);
     snprintf(info_lines[3], SF_LINE_WIDTH, "\033[1;32mKernel   :\033[0m %s", data->kernel);
     snprintf(info_lines[4], SF_LINE_WIDTH, "\033[1;32mUptime   :\033[0m %s", data->os_uptime);

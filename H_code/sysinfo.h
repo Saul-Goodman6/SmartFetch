@@ -3,7 +3,7 @@
 
 #define SF_LINE_COUNT 11
 #define SF_LINE_WIDTH 512
-#define SF_ASCII_WIDTH 35
+#define SF_ASCII_WIDTH 45
 
 typedef struct {
     char os_name[64];
