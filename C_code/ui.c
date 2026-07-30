@@ -80,9 +80,8 @@ static int is_fastfetch_available(void) {
     return system("command -v fastfetch >/dev/null 2>&1") == 0;
 }
 
-
 static FILE *open_fastfetch_logo(void) {
-    return popen("fastfetch --logo-type builtin --logo-only 2>/dev/null", "r");
+    return popen("fastfetch --pipe false --structure \"\" 2>/dev/null", "r");
 }
 
 void render_ui(const SystemData *data) {
