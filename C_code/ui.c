@@ -82,12 +82,22 @@ void render_ui(const SystemData *data) {
 
     const char *ascii_name = "default_ascii.txt";
 
-    if (strstr(data->os_name, "Arch") != NULL || strstr(data->os_name, "arch") != NULL) {
+    if (strstr(data->os_name, "CachyOS") != NULL || strstr(data->os_name, "cachyos") != NULL) {
+        ascii_name = "cashyos_ascii.txt";
+    } else if (strstr(data->os_name, "EndeavourOS") != NULL || strstr(data->os_name, "endeavouros") != NULL) {
+        ascii_name = "endeavouros_ascii.txt";
+    } else if (strstr(data->os_name, "Arch") != NULL || strstr(data->os_name, "arch") != NULL) {
         ascii_name = "arch_ascii.txt";
     } else if (strstr(data->os_name, "Fedora") != NULL || strstr(data->os_name, "fedora") != NULL) {
         ascii_name = "fedora_ascii.txt";
+    } else if (strstr(data->os_name, "Linux Mint") != NULL || strstr(data->os_name, "linuxmint") != NULL) {
+        ascii_name = "linuxmint_ascii.txt";
+    } else if (strstr(data->os_name, "Ubuntu") != NULL || strstr(data->os_name, "ubuntu") != NULL) {
+        ascii_name = "ubuntu_ascii.txt";
     } else if (strstr(data->os_name, "Debian GNU/Linux") != NULL || strstr(data->os_name, "debian") != NULL) {
         ascii_name = "debian_ascii.txt";
+    } else if (strstr(data->os_name, "Windows") != NULL || strstr(data->os_name, "windows") != NULL) {
+        ascii_name = "windows_ascii.txt";
     }
 
     FILE *ascii_fp = open_ascii_file(exe_dir, ascii_name);

@@ -1,0 +1,19 @@
+[37m            _.-ppOOOOOOqq-._[0m
+[37m         .oOOOOPPPPPPPPPPOOOOo.[0m
+[37m      .oOOOO.[32m=oOOOOOOOOOOo=[37m.OOOOo.[0m
+[37m    .:OOO.[32m=oOOOOOOOOOOOOOOOOo=[37m.OOO:.[0m
+[37m   .OOO.[32mOOOOOOOOOOOOOOOOOOOOOOO[37m.OOO.[0m
+[37m  .OOO.[32mOO    OOO              :OOO[37m.OO:[0m
+[37m .OOO.[32mOOO    OO                OOO[37m.OOO:[0m
+[37m OOO.[32mOOOO    OO    oo    oo    OOOO[37m.OOO[0m
+[37m:OOO:[32mOOOO    OO    OO    OO    OOOO[37m:OOO:[0m
+[37m:OOO:[32mOOOO    OO    OO    OO    OOOO[37m:OOO:[0m
+[37m'OOO'[32mOOOO    OO    OO    OO    OOOO[37m'OOO'[0m
+[37m OOO'[32mOOOO    OO____OO____OO    OOOO[37m'OOO'[0m
+[37m 'OOO'[32mOOO    'OOOOOOOOOOOO'    OOOO[37m'OOO[0m
+[37m  'OOO'[32mOOO                    .OOO[37m'OOO'[0m
+[37m   'OOO'[32mOOOO:ooooooooooooooo:OOOO[37m'OOO'[0m
+[37m    ':OOOo'[32m=OOOOOOOOOOOOOOOOO=[37m'oOOO:'[0m
+[37m      ':OOOOo'[32m=OOOOOOOOOOO=[37m'oOOOO:'[0m
+[37m         ``-OOOO[32moooooooooo[37mOOOO-´´[0m
+[37m             

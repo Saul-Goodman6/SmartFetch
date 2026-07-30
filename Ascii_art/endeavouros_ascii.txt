@@ -1,0 +1,15 @@
+[31m                     ./[95mo[34m.
+[31m                   ./[95msssso[34m-
+[31m                  `:[95mosssssss+[34m-
+[31m                `:[95msssssssssso[34m/.
+[31m              `-/o[95mssssssssssssso[34m/.
+[31m            `-/+[95msssssssssssssssso[34m+:`
+[31m          `-:/+[95msssssssssssssssssso[34m+/.
+[31m        `.://o[95msssssssssssssssssssso[34m++-
+[31m      .://+[95mssssssssssssssssssssssso[34m++:
+[31m    .:///o[95mssssssssssssssssssssssssso[34m++:
+[31m  `:////[95mssssssssssssssssssssssssssso[34m+++.
+[31m`-////+[95mssssssssssssssssssssssssssso[34m++++-
+[31m `..-+[95moosssssssssssssssssssssssso[34m+++++/`
+[34m   ./++++++++++++++++++++++++++++++/:.
+[34m  `:::::::::::::::::::::::::------``[0m
