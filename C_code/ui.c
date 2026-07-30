@@ -76,14 +76,6 @@ static FILE *open_ascii_file(const char *exe_dir, const char *ascii_name) {
     return fopen(path, "r");
 }
 
-static int is_fastfetch_available(void) {
-    return system("command -v fastfetch >/dev/null 2>&1") == 0;
-}
-
-static FILE *open_fastfetch_logo(void) {
-    return popen("fastfetch --pipe false --structure \"\" 2>/dev/null", "r");
-}
-
 void render_ui(const SystemData *data) {
     char exe_dir[PATH_MAX];
     get_exe_dir(exe_dir, sizeof(exe_dir));
@@ -98,17 +90,7 @@ void render_ui(const SystemData *data) {
         ascii_name = "debian_ascii.txt";
     }
 
-    FILE *ascii_fp = NULL;
-    int ascii_is_pipe = 0;
-
-    if (is_fastfetch_available()) {
-        ascii_fp = open_fastfetch_logo();
-        if (ascii_fp) ascii_is_pipe = 1;
-    }
-
-    if (!ascii_fp) {
-        ascii_fp = open_ascii_file(exe_dir, ascii_name);
-    }
+    FILE *ascii_fp = open_ascii_file(exe_dir, ascii_name);
 
     char ascii_line[128];
     int line_index = 0;
@@ -188,10 +170,7 @@ void render_ui(const SystemData *data) {
         line_index++;
     }
 
-    if (ascii_fp) {
-        if (ascii_is_pipe) pclose(ascii_fp);
-        else fclose(ascii_fp);
-    }
+    if (ascii_fp) fclose(ascii_fp);
     printf("\n");
 
     
