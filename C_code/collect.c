@@ -133,6 +133,13 @@ static double kb_to_gib(long kb) {
     return kb / (1024.0 * 1024.0);
 }
 
+/* Pick a color code based on usage percentage: <50% green, 50-79% yellow, >=80% red */
+static const char *usage_color(double percent) {
+    if (percent < 50.0) return "\033[1;32m";
+    if (percent < 80.0) return "\033[1;33m";
+    return "\033[1;31m";
+}
+
 static void get_ram_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
     FILE *fp = fopen("/proc/meminfo", "r");
@@ -153,7 +160,11 @@ static void get_ram_info(char *out, size_t size) {
     if (mem_total < 0) return;
 
     if (mem_available >= 0) {
-        snprintf(out, size, "%.1fGi / %.1fGi", kb_to_gib(mem_total - mem_available), kb_to_gib(mem_total));
+        long used_kb = mem_total - mem_available;
+        double percent = (double)used_kb / (double)mem_total * 100.0;
+        snprintf(out, size, "%.1fGi / %.1fGi (%s%.0f%%\033[0m)",
+                 kb_to_gib(used_kb), kb_to_gib(mem_total),
+                 usage_color(percent), percent);
     } else {
         snprintf(out, size, "%.1fGi total", kb_to_gib(mem_total));
     }

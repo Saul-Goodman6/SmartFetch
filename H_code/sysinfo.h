@@ -16,7 +16,7 @@ typedef struct {
     char shell_info[64];
     char cpu_name[128];
     char cpu_temp[32];
-    char ram_total[32];
+    char ram_total[64];
     char ram_type[32];
     char gpu_type[128];
     char storage_info[512];
