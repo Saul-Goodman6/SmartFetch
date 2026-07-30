@@ -50,3 +50,11 @@ make
 sudo make install
 
 <img width="800" height="449" alt="sfetch" src="https://github.com/user-attachments/assets/62994abe-982b-47eb-8827-0029a0fad86b" />
+
+## Windows Support (Beta)
+
+```Compile using GCC / MinGW```
+
+gcc main.c ui.c collect_windows.c -o sfetch.exe -ladvapi32
+
+sfetch.exe
