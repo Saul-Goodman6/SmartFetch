@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pwd.h>
+#include <fcntl.h>
+#include <sys/wait.h>
 #include "sysinfo.h"
 
 #ifndef PATH_MAX
@@ -14,33 +16,70 @@
 #define HOST_NAME_MAX 256
 #endif
 
-static void get_cmd(const char *cmd, char *output, size_t size) {
-    FILE *fp = popen(cmd, "r");
+static void get_cmd_output(char *const argv[], char *output, size_t size) {
+    if (size == 0) return;
+    output[0] = '\0';
+
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        strncpy(output, "N/A", size - 1);
+        return;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        strncpy(output, "N/A", size - 1);
+        return;
+    }
+
+    if (pid == 0) {
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+
+    close(pipefd[1]);
+    FILE *fp = fdopen(pipefd[0], "r");
     if (fp) {
         if (fgets(output, size, fp) != NULL) {
             output[strcspn(output, "\n")] = 0;
-        } else {
-            strncpy(output, "N/A", size);
         }
-        pclose(fp);
+        fclose(fp);
     } else {
-        strncpy(output, "N/A", size);
+        close(pipefd[0]);
     }
+
+    int status;
+    waitpid(pid, &status, 0);
+
     if (output[0] == '\0') {
-        strncpy(output, "N/A", size);
+        strncpy(output, "N/A", size - 1);
     }
 }
 
 static void get_exe_dir(char *out, size_t size) {
+    out[0] = '\0';
+    if (size == 0) return;
+
     ssize_t len = readlink("/proc/self/exe", out, size - 1);
-    if (len != -1) {
-        out[len] = '\0';
-        char *slash = strrchr(out, '/');
-        if (slash) {
-            *(slash + 1) = '\0';
-        } else {
-            out[0] = '\0';
-        }
+    if (len <= 0 || (size_t)len >= size) {
+        out[0] = '\0';
+        return;
+    }
+
+    out[len] = '\0';
+    char *slash = strrchr(out, '/');
+    if (slash) {
+        *(slash + 1) = '\0';
     } else {
         out[0] = '\0';
     }
@@ -76,63 +115,67 @@ static FILE *open_ascii_file(const char *exe_dir, const char *ascii_name) {
     return fopen(path, "r");
 }
 
-void render_ui(const SystemData *data) {
-    char exe_dir[PATH_MAX];
-    get_exe_dir(exe_dir, sizeof(exe_dir));
+typedef struct {
+    const char *needle;
+    const char *file;
+} os_match_t;
 
-    const char *ascii_name = "default_ascii.txt";
+static const char *pick_ascii_name(const char *os_name) {
+    static const os_match_t os_matches[] = {
+        {"CachyOS", "cashyos_ascii.txt"},
+        {"cachyos", "cashyos_ascii.txt"},
+        {"EndeavourOS", "endeavouros_ascii.txt"},
+        {"endeavouros", "endeavouros_ascii.txt"},
+        {"Arch", "arch_ascii.txt"},
+        {"arch", "arch_ascii.txt"},
+        {"Fedora", "fedora_ascii.txt"},
+        {"fedora", "fedora_ascii.txt"},
+        {"Linux Mint", "linuxmint_ascii.txt"},
+        {"linuxmint", "linuxmint_ascii.txt"},
+        {"Ubuntu", "ubuntu_ascii.txt"},
+        {"ubuntu", "ubuntu_ascii.txt"},
+        {"Debian GNU/Linux", "debian_ascii.txt"},
+        {"debian", "debian_ascii.txt"},
+        {"Windows", "windows_ascii.txt"},
+        {"windows", "windows_ascii.txt"},
+    };
 
-    if (strstr(data->os_name, "CachyOS") != NULL || strstr(data->os_name, "cachyos") != NULL) {
-        ascii_name = "cashyos_ascii.txt";
-    } else if (strstr(data->os_name, "EndeavourOS") != NULL || strstr(data->os_name, "endeavouros") != NULL) {
-        ascii_name = "endeavouros_ascii.txt";
-    } else if (strstr(data->os_name, "Arch") != NULL || strstr(data->os_name, "arch") != NULL) {
-        ascii_name = "arch_ascii.txt";
-    } else if (strstr(data->os_name, "Fedora") != NULL || strstr(data->os_name, "fedora") != NULL) {
-        ascii_name = "fedora_ascii.txt";
-    } else if (strstr(data->os_name, "Linux Mint") != NULL || strstr(data->os_name, "linuxmint") != NULL) {
-        ascii_name = "linuxmint_ascii.txt";
-    } else if (strstr(data->os_name, "Ubuntu") != NULL || strstr(data->os_name, "ubuntu") != NULL) {
-        ascii_name = "ubuntu_ascii.txt";
-    } else if (strstr(data->os_name, "Debian GNU/Linux") != NULL || strstr(data->os_name, "debian") != NULL) {
-        ascii_name = "debian_ascii.txt";
-    } else if (strstr(data->os_name, "Windows") != NULL || strstr(data->os_name, "windows") != NULL) {
-        ascii_name = "windows_ascii.txt";
+    for (size_t i = 0; i < sizeof(os_matches) / sizeof(os_matches[0]); i++) {
+        if (strstr(os_name, os_matches[i].needle) != NULL) {
+            return os_matches[i].file;
+        }
     }
+    return "default_ascii.txt";
+}
 
-    FILE *ascii_fp = open_ascii_file(exe_dir, ascii_name);
-
-    char ascii_line[128];
-    int line_index = 0;
-
-    printf("\n");
-
-    char hostname[HOST_NAME_MAX];
-    char *username = NULL;
-
+static void resolve_identity(const char **username_out, char *hostname, size_t hostname_size) {
     struct passwd *pw = getpwuid(getuid());
     if (pw && pw->pw_name) {
-        username = pw->pw_name;
+        *username_out = pw->pw_name;
     } else {
-        username = getenv("USER");
-        if (username == NULL) username = getlogin();
-        if (username == NULL) username = "user";
+        const char *env_user = getenv("USER");
+        *username_out = env_user ? env_user : "user";
     }
 
-    if (gethostname(hostname, sizeof(hostname)) != 0 || strlen(hostname) == 0) {
-        snprintf(hostname, sizeof(hostname), "smartfetch");
+    if (gethostname(hostname, hostname_size) != 0 || strlen(hostname) == 0) {
+        snprintf(hostname, hostname_size, "smartfetch");
     }
+}
 
-    char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH];
-    memset(info_lines, 0, sizeof(info_lines));
+static void build_info_lines(char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH],
+                              const SystemData *data,
+                              const char *username,
+                              const char *hostname) {
+    memset(info_lines, 0, SF_LINE_COUNT * SF_LINE_WIDTH);
+
     snprintf(info_lines[0], SF_LINE_WIDTH, "\033[1;36m%s\033[0m@\033[1;36m%s\033[0m", username, hostname);
-    
+
     int user_host_len = strlen(username) + strlen(hostname) + 1;
     char separator[128] = "";
     for (int i = 0; i < user_host_len && i < 127; i++) {
         separator[i] = '-';
     }
-    separator[user_host_len] = '\0';
+    separator[user_host_len < 127 ? user_host_len : 127] = '\0';
 
     snprintf(info_lines[1], SF_LINE_WIDTH, "%s", separator);
     snprintf(info_lines[2], SF_LINE_WIDTH, "\033[1;32mOS       :\033[0m %s", data->os_name);
@@ -147,6 +190,11 @@ void render_ui(const SystemData *data) {
     snprintf(info_lines[11], SF_LINE_WIDTH, "\033[1;32mGPU      :\033[0m %s", data->gpu_type);
     snprintf(info_lines[12], SF_LINE_WIDTH, "\033[1;32mShell    :\033[0m %s", data->shell_info);
     snprintf(info_lines[13], SF_LINE_WIDTH, "\033[1;32mFlatpak  :\033[0m %s", data->flatpak_count);
+}
+
+static void print_body(FILE *ascii_fp, char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH]) {
+    char ascii_line[128];
+    int line_index = 0;
 
     while (1) {
         char *got_ascii = NULL;
@@ -179,11 +227,29 @@ void render_ui(const SystemData *data) {
         printf("\n");
         line_index++;
     }
+}
+
+void render_ui(const SystemData *data) {
+    char exe_dir[PATH_MAX];
+    get_exe_dir(exe_dir, sizeof(exe_dir));
+
+    const char *ascii_name = pick_ascii_name(data->os_name);
+    FILE *ascii_fp = open_ascii_file(exe_dir, ascii_name);
+
+    printf("\n");
+
+    char hostname[HOST_NAME_MAX];
+    const char *username = NULL;
+    resolve_identity(&username, hostname, sizeof(hostname));
+
+    char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH];
+    build_info_lines(info_lines, data, username, hostname);
+
+    print_body(ascii_fp, info_lines);
 
     if (ascii_fp) fclose(ascii_fp);
     printf("\n");
 
-    
     print_color_palette();
     printf("\n");
 }
@@ -198,13 +264,19 @@ void print_help(void) {
 }
 
 void check_for_update(void) {
-    char remote_hash[64];
-    char cmd[256];
+    char line[256];
+    char remote_hash[64] = "N/A";
 
-    snprintf(cmd, sizeof(cmd),
-        "git ls-remote %s refs/heads/main 2>/dev/null | awk '{print $1}'",
-        SF_REPO_URL);
-    get_cmd(cmd, remote_hash, sizeof(remote_hash));
+    char *argv[] = { "git", "ls-remote", (char *)SF_REPO_URL, "refs/heads/main", NULL };
+    get_cmd_output(argv, line, sizeof(line));
+
+    if (strcmp(line, "N/A") != 0 && line[0] != '\0') {
+        char *tab = strchr(line, '\t');
+        size_t len = tab ? (size_t)(tab - line) : strlen(line);
+        if (len >= sizeof(remote_hash)) len = sizeof(remote_hash) - 1;
+        memcpy(remote_hash, line, len);
+        remote_hash[len] = '\0';
+    }
 
     if (strcmp(remote_hash, "N/A") == 0 || strlen(remote_hash) == 0) {
         printf("Could not check for updates.\n");

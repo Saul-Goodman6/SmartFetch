@@ -20,7 +20,6 @@
 #define PATH_MAX 4096
 #endif
 
-/* ---------- OS name (/etc/os-release) ---------- */
 static void get_os_name(char *out, size_t size) {
     strncpy(out, "N/A", size);
     FILE *fp = fopen("/etc/os-release", "r");
@@ -44,7 +43,6 @@ static void get_os_name(char *out, size_t size) {
     fclose(fp);
 }
 
-/* ---------- Kernel (uname syscall) ---------- */
 static void get_kernel(char *out, size_t size) {
     struct utsname u;
     if (uname(&u) == 0) {
@@ -55,7 +53,6 @@ static void get_kernel(char *out, size_t size) {
     }
 }
 
-/* ---------- CPU model name (/proc/cpuinfo) ---------- */
 static void get_cpu_name(char *out, size_t size) {
     strncpy(out, "N/A", size);
     FILE *fp = fopen("/proc/cpuinfo", "r");
@@ -78,7 +75,6 @@ static void get_cpu_name(char *out, size_t size) {
     fclose(fp);
 }
 
-/* ---------- CPU temperature (/sys/class/thermal) ---------- */
 static void get_cpu_temp(char *out, size_t size) {
     strncpy(out, "N/A", size);
 
@@ -128,12 +124,10 @@ static void get_cpu_temp(char *out, size_t size) {
     fclose(tf);
 }
 
-/* ---------- RAM usage (/proc/meminfo) ---------- */
 static double kb_to_gib(long kb) {
     return kb / (1024.0 * 1024.0);
 }
 
-/* Pick a color code based on usage percentage: <50% green, 50-79% yellow, >=80% red */
 static const char *usage_color(double percent) {
     if (percent < 50.0) return "\033[1;32m";
     if (percent < 80.0) return "\033[1;33m";
@@ -170,28 +164,24 @@ static void get_ram_info(char *out, size_t size) {
     }
 }
 
-/* ---------- RAM type ---------- */
 static const char *mem_type_name(uint8_t t) {
     static const char *low_types[] = {
         NULL, "Other", "Unknown", "DRAM", "EDRAM", "VRAM", "SRAM", "RAM",
         "ROM", "FLASH", "EEPROM", "FEPROM", "EPROM", "CDRAM", "3DRAM",
         "SDRAM", "SGRAM", "RDRAM", "DDR", "DDR2", "DDR2 FB-DIMM"
     };
+    static const struct { uint8_t code; const char *name; } high_types[] = {
+        {0x18, "DDR3"}, {0x19, "FBD2"}, {0x1A, "DDR4"}, {0x1B, "LPDDR"},
+        {0x1C, "LPDDR2"}, {0x1D, "LPDDR3"}, {0x1E, "LPDDR4"},
+        {0x20, "HBM"}, {0x21, "HBM2"}, {0x22, "DDR5"}, {0x23, "LPDDR5"}
+    };
+
     if (t >= 1 && t <= 20) return low_types[t];
-    switch (t) {
-        case 0x18: return "DDR3";
-        case 0x19: return "FBD2";
-        case 0x1A: return "DDR4";
-        case 0x1B: return "LPDDR";
-        case 0x1C: return "LPDDR2";
-        case 0x1D: return "LPDDR3";
-        case 0x1E: return "LPDDR4";
-        case 0x20: return "HBM";
-        case 0x21: return "HBM2";
-        case 0x22: return "DDR5";
-        case 0x23: return "LPDDR5";
-        default: return NULL;
+
+    for (size_t i = 0; i < sizeof(high_types) / sizeof(high_types[0]); i++) {
+        if (high_types[i].code == t) return high_types[i].name;
     }
+    return NULL;
 }
 
 static void get_ram_type(char *out, size_t size) {
@@ -235,7 +225,6 @@ static void get_ram_type(char *out, size_t size) {
     }
 }
 
-/* ---------- Storage info ---------- */
 static void get_storage_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
 
@@ -274,7 +263,6 @@ static void get_storage_info(char *out, size_t size) {
     snprintf(out, size, "%s (%s) %.1fG/%.1fG", device, fstype, used_gb, total_gb);
 }
 
-/* ---------- Screen info ---------- */
 static void get_screen_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
 
@@ -315,7 +303,26 @@ static void get_screen_info(char *out, size_t size) {
     closedir(d);
 }
 
-/* ---------- GPU info ---------- */
+static int parse_vendor_line(const char *line, char *vname, size_t vname_size) {
+    const char *name = line + 4;
+    while (*name == ' ' || *name == '\t') name++;
+    strncpy(vname, name, vname_size - 1);
+    vname[vname_size - 1] = '\0';
+    vname[strcspn(vname, "\n")] = 0;
+    return 1;
+}
+
+static int parse_device_line(const char *line, unsigned device, char *dname, size_t dname_size) {
+    unsigned dv;
+    if (sscanf(line + 1, "%4x", &dv) != 1 || dv != device) return 0;
+    const char *name = line + 1 + 4;
+    while (*name == ' ' || *name == '\t') name++;
+    strncpy(dname, name, dname_size - 1);
+    dname[dname_size - 1] = '\0';
+    dname[strcspn(dname, "\n")] = 0;
+    return 1;
+}
+
 static int pci_ids_lookup(const char *path, unsigned vendor, unsigned device,
                            char *vname, size_t vname_size, char *dname, size_t dname_size) {
     FILE *fp = fopen(path, "r");
@@ -328,32 +335,22 @@ static int pci_ids_lookup(const char *path, unsigned vendor, unsigned device,
         if (line[0] == '#' || line[0] == '\n') continue;
         if (line[0] == '\t' && line[1] == '\t') continue;
 
-        if (line[0] != '\t') {
-            unsigned v;
-            if (sscanf(line, "%4x", &v) == 1) {
-                if (v == vendor) {
-                    in_vendor = 1;
-                    found_vendor = 1;
-                    char *name = line + 4;
-                    while (*name == ' ' || *name == '\t') name++;
-                    name[strcspn(name, "\n")] = 0;
-                    strncpy(vname, name, vname_size - 1);
-                    vname[vname_size - 1] = '\0';
-                } else if (in_vendor) {
-                    break;
-                }
-            }
-        } else if (in_vendor) {
-            unsigned dv;
-            if (sscanf(line + 1, "%4x", &dv) == 1 && dv == device) {
-                char *name = line + 1 + 4;
-                while (*name == ' ' || *name == '\t') name++;
-                name[strcspn(name, "\n")] = 0;
-                strncpy(dname, name, dname_size - 1);
-                dname[dname_size - 1] = '\0';
+        if (line[0] == '\t') {
+            if (in_vendor && parse_device_line(line, device, dname, dname_size)) {
                 found_device = 1;
                 break;
             }
+            continue;
+        }
+
+        unsigned v;
+        if (sscanf(line, "%4x", &v) != 1) continue;
+
+        if (v == vendor) {
+            in_vendor = 1;
+            found_vendor = parse_vendor_line(line, vname, vname_size);
+        } else if (in_vendor) {
+            break;
         }
     }
     fclose(fp);
@@ -413,7 +410,6 @@ static void get_gpu_info(char *out, size_t size) {
     closedir(d);
 }
 
-/* ---------- Shell info ---------- */
 static void get_shell_info(char *out, size_t size) {
     strncpy(out, "N/A", size);
     const char *shell = getenv("SHELL");
@@ -424,7 +420,6 @@ static void get_shell_info(char *out, size_t size) {
     out[size - 1] = '\0';
 }
 
-/* ---------- Flatpak count ---------- */
 static int count_dir_entries(const char *path) {
     DIR *d = opendir(path);
     if (!d) return -1;
@@ -460,7 +455,6 @@ static void get_flatpak_count(char *out, size_t size) {
     }
 }
 
-/* ---------- OS age ---------- */
 static void get_os_age(char *out, size_t size) {
     strncpy(out, "N/A", size);
     struct statx stx;
@@ -472,7 +466,6 @@ static void get_os_age(char *out, size_t size) {
     }
 }
 
-/* ---------- Uptime ---------- */
 static void get_os_uptime(char *out, size_t size) {
     strncpy(out, "N/A", size);
     FILE *fp = fopen("/proc/uptime", "r");
@@ -512,7 +505,6 @@ static void get_os_uptime(char *out, size_t size) {
     out[size - 1] = '\0';
 }
 
-/* ---------- Progress Bar Generator ---------- */
 void make_progress_bar(char *out, size_t size, double percentage, int width) {
     if (percentage < 0) percentage = 0;
     if (percentage > 100) percentage = 100;
@@ -531,7 +523,6 @@ void make_progress_bar(char *out, size_t size, double percentage, int width) {
     snprintf(out, size, "%s] %.0f%%", bar, percentage);
 }
 
-/* ---------- Color Palette Generator ---------- */
 void print_color_palette(void) {
     printf("   ");
     for (int i = 0; i < 8; i++) {
@@ -544,7 +535,6 @@ void print_color_palette(void) {
     printf("\n");
 }
 
-/* ---------- Collect Entry Point ---------- */
 void collect_system_data(SystemData *data) {
     get_os_name(data->os_name, sizeof(data->os_name));
     get_kernel(data->kernel, sizeof(data->kernel));
