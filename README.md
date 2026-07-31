@@ -55,6 +55,6 @@ sudo make install
 
 ```Compile using GCC / MinGW```
 
-gcc main.c ui.c collect_windows.c -o sfetch.exe -ladvapi32
+```gcc main.c ui.c collect_windows.c -o sfetch.exe -ladvapi32```
 
-sfetch.exe
+```sfetch.exe```
