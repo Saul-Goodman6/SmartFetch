@@ -11,7 +11,18 @@ TARGET = sfetch
 PREFIX ?= /usr/local
 DATA_DIR = /usr/share/smartfetch
 
-all: $(TARGET)
+all: check-deps $(TARGET)
+
+check-deps:
+	@echo '#include <curl/curl.h>' | $(CC) -E - >/dev/null 2>&1 || { \
+		echo "Error: libcurl development headers not found (curl/curl.h missing)."; \
+		echo ""; \
+		echo "Install them first:"; \
+		echo "  Debian/Ubuntu : sudo apt install libcurl4-openssl-dev"; \
+		echo "  Fedora        : sudo dnf install libcurl-devel"; \
+		echo "  Arch          : sudo pacman -S curl"; \
+		exit 1; \
+	}
 
 $(TARGET): $(OBJ)
 	$(CC) $(OBJ) -o $@ $(LDLIBS)
@@ -28,4 +39,4 @@ install: $(TARGET)
 clean:
 	rm -f C_code/*.o $(TARGET)
 
-.PHONY: all install clean
+.PHONY: all check-deps install clean
