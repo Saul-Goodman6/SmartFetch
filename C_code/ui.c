@@ -4,8 +4,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pwd.h>
-#include <fcntl.h>
-#include <sys/wait.h>
+#include <curl/curl.h>
 #include "sysinfo.h"
 
 #ifndef PATH_MAX
@@ -16,71 +15,105 @@
 #define HOST_NAME_MAX 256
 #endif
 
-static const char *resolve_git_path(void) {
-    static const char *candidates[] = {
-        "/usr/bin/git",
-        "/bin/git",
-        "/usr/local/bin/git"
-    };
-    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
-        if (access(candidates[i], X_OK) == 0) return candidates[i];
-    }
-    return NULL;
+struct membuf {
+    char *data;
+    size_t size;
+};
+
+static size_t curl_write_cb(void *contents, size_t size, size_t nmemb, void *userp) {
+    size_t realsize = size * nmemb;
+    struct membuf *mem = (struct membuf *)userp;
+    char *ptr = realloc(mem->data, mem->size + realsize + 1);
+    if (!ptr) return 0;
+    mem->data = ptr;
+    memcpy(mem->data + mem->size, contents, realsize);
+    mem->size += realsize;
+    mem->data[mem->size] = '\0';
+    return realsize;
 }
 
-static void get_cmd_output(const char *path, char *const argv[], char *output, size_t size) {
-    if (size == 0) return;
-    output[0] = '\0';
+static int parse_owner_repo(const char *repo_url, char *owner, size_t owner_size, char *repo, size_t repo_size) {
+    const char *marker = strstr(repo_url, "github.com/");
+    if (!marker) return 0;
+    marker += strlen("github.com/");
 
-    if (!path) {
-        strncpy(output, "N/A", size - 1);
-        return;
+    const char *slash = strchr(marker, '/');
+    if (!slash) return 0;
+
+    size_t owner_len = (size_t)(slash - marker);
+    if (owner_len == 0 || owner_len >= owner_size) return 0;
+    memcpy(owner, marker, owner_len);
+    owner[owner_len] = '\0';
+
+    const char *repo_start = slash + 1;
+    const char *git_suffix = strstr(repo_start, ".git");
+    size_t repo_len = git_suffix ? (size_t)(git_suffix - repo_start) : strlen(repo_start);
+    if (repo_len == 0 || repo_len >= repo_size) return 0;
+    memcpy(repo, repo_start, repo_len);
+    repo[repo_len] = '\0';
+
+    return 1;
+}
+
+static int extract_json_sha(const char *json, char *out, size_t out_size) {
+    const char *key = "\"sha\"";
+    const char *p = strstr(json, key);
+    if (!p) return 0;
+
+    p = strchr(p + strlen(key), ':');
+    if (!p) return 0;
+    p++;
+
+    while (*p == ' ' || *p == '"') p++;
+
+    size_t i = 0;
+    while (p[i] && p[i] != '"' && i < out_size - 1) {
+        out[i] = p[i];
+        i++;
+    }
+    out[i] = '\0';
+    return i > 0;
+}
+
+static int fetch_latest_sha(char *out, size_t out_size) {
+    char owner[128], repo[128];
+    if (!parse_owner_repo(SF_REPO_URL, owner, sizeof(owner), repo, sizeof(repo))) {
+        return 0;
     }
 
-    int pipefd[2];
-    if (pipe(pipefd) != 0) {
-        strncpy(output, "N/A", size - 1);
-        return;
+    char api_url[256];
+    snprintf(api_url, sizeof(api_url), "https://api.github.com/repos/%s/%s/commits/main", owner, repo);
+
+    CURL *curl = curl_easy_init();
+    if (!curl) return 0;
+
+    struct membuf mem = { .data = malloc(1), .size = 0 };
+    if (!mem.data) {
+        curl_easy_cleanup(curl);
+        return 0;
+    }
+    mem.data[0] = '\0';
+
+    curl_easy_setopt(curl, CURLOPT_URL, api_url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&mem);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "smartfetch");
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+
+    CURLcode res = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+
+    int ok = 0;
+    if (res == CURLE_OK && http_code == 200) {
+        ok = extract_json_sha(mem.data, out, out_size);
     }
 
-    pid_t pid = fork();
-    if (pid < 0) {
-        close(pipefd[0]);
-        close(pipefd[1]);
-        strncpy(output, "N/A", size - 1);
-        return;
-    }
-
-    if (pid == 0) {
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[1]);
-        int devnull = open("/dev/null", O_WRONLY);
-        if (devnull >= 0) {
-            dup2(devnull, STDERR_FILENO);
-            close(devnull);
-        }
-        execv(path, argv);
-        _exit(127);
-    }
-
-    close(pipefd[1]);
-    FILE *fp = fdopen(pipefd[0], "r");
-    if (fp) {
-        if (fgets(output, size, fp) != NULL) {
-            output[strcspn(output, "\n")] = 0;
-        }
-        fclose(fp);
-    } else {
-        close(pipefd[0]);
-    }
-
-    int status;
-    waitpid(pid, &status, 0);
-
-    if (output[0] == '\0') {
-        strncpy(output, "N/A", size - 1);
-    }
+    free(mem.data);
+    return ok;
 }
 
 static void get_exe_dir(char *out, size_t size) {
@@ -281,24 +314,11 @@ void print_help(void) {
 }
 
 void check_for_update(void) {
-    char line[256];
     char remote_hash[64] = "N/A";
 
-    const char *git_path = resolve_git_path();
-    char *argv[] = { (char *)"git", (char *)"ls-remote", (char *)SF_REPO_URL, (char *)"refs/heads/main", NULL };
-    get_cmd_output(git_path, argv, line, sizeof(line));
-
-    if (strcmp(line, "N/A") != 0 && line[0] != '\0') {
-        char *tab = strchr(line, '\t');
-        size_t len = tab ? (size_t)(tab - line) : strlen(line);
-        if (len >= sizeof(remote_hash)) len = sizeof(remote_hash) - 1;
-        memcpy(remote_hash, line, len);
-        remote_hash[len] = '\0';
-    }
-
-    if (strcmp(remote_hash, "N/A") == 0 || strlen(remote_hash) == 0) {
+    if (!fetch_latest_sha(remote_hash, sizeof(remote_hash))) {
         printf("Could not check for updates.\n");
-        printf("Make sure you are connected to the internet and git is installed.\n");
+        printf("Make sure you are connected to the internet.\n");
         return;
     }
 

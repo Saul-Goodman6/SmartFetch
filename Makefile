@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -O2 -I./H_code
+LDLIBS = -lcurl
 GIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 CFLAGS += -DSF_VERSION=\"$(GIT_HASH)\"
 
@@ -13,7 +14,7 @@ DATA_DIR = /usr/share/smartfetch
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(OBJ) -o $@
+	$(CC) $(OBJ) -o $@ $(LDLIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
