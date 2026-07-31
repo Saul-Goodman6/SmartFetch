@@ -16,9 +16,26 @@
 #define HOST_NAME_MAX 256
 #endif
 
-static void get_cmd_output(char *const argv[], char *output, size_t size) {
+static const char *resolve_git_path(void) {
+    static const char *candidates[] = {
+        "/usr/bin/git",
+        "/bin/git",
+        "/usr/local/bin/git"
+    };
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        if (access(candidates[i], X_OK) == 0) return candidates[i];
+    }
+    return NULL;
+}
+
+static void get_cmd_output(const char *path, char *const argv[], char *output, size_t size) {
     if (size == 0) return;
     output[0] = '\0';
+
+    if (!path) {
+        strncpy(output, "N/A", size - 1);
+        return;
+    }
 
     int pipefd[2];
     if (pipe(pipefd) != 0) {
@@ -43,7 +60,7 @@ static void get_cmd_output(char *const argv[], char *output, size_t size) {
             dup2(devnull, STDERR_FILENO);
             close(devnull);
         }
-        execv(argv[0], argv);
+        execv(path, argv);
         _exit(127);
     }
 
@@ -267,8 +284,9 @@ void check_for_update(void) {
     char line[256];
     char remote_hash[64] = "N/A";
 
-    char *argv[] = { "git", "ls-remote", (char *)SF_REPO_URL, "refs/heads/main", NULL };
-    get_cmd_output(argv, line, sizeof(line));
+    const char *git_path = resolve_git_path();
+    char *argv[] = { (char *)"git", (char *)"ls-remote", (char *)SF_REPO_URL, (char *)"refs/heads/main", NULL };
+    get_cmd_output(git_path, argv, line, sizeof(line));
 
     if (strcmp(line, "N/A") != 0 && line[0] != '\0') {
         char *tab = strchr(line, '\t');
