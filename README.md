@@ -39,6 +39,21 @@
 
 ---
 
+## Prerequisites
+
+SmartFetch needs `gcc`/`make` and the **libcurl development headers** (used by the `--update` checker) to build:
+
+```bash
+# Debian / Ubuntu
+sudo apt install build-essential libcurl4-openssl-dev
+
+# Fedora
+sudo dnf install gcc make libcurl-devel
+
+# Arch
+sudo pacman -S base-devel curl
+```
+
 ## Build & Installation
 
 Clone the repository and compile using `make`:
