@@ -43,7 +43,7 @@ static void get_cmd_output(char *const argv[], char *output, size_t size) {
             dup2(devnull, STDERR_FILENO);
             close(devnull);
         }
-        execvp(argv[0], argv);
+        execv(argv[0], argv);
         _exit(127);
     }
 
