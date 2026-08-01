@@ -35,6 +35,12 @@ install: $(TARGET)
 	cp -r Ascii_art/* $(DESTDIR)$(DATA_DIR)/Ascii_art/
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp $(TARGET) $(DESTDIR)$(PREFIX)/bin/
+	@if command -v setcap >/dev/null 2>&1; then \
+		setcap cap_dac_read_search+ep $(DESTDIR)$(PREFIX)/bin/$(TARGET) && \
+		echo "==> granted cap_dac_read_search to $(DESTDIR)$(PREFIX)/bin/$(TARGET) (needed to read RAM type from DMI)"; \
+	else \
+		echo "==> setcap not found (install package 'libcap2-bin' / 'libcap' to enable RAM type detection without sudo)"; \
+	fi
 
 clean:
 	rm -f C_code/*.o $(TARGET)

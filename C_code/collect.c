@@ -184,8 +184,36 @@ static const char *mem_type_name(uint8_t t) {
     return NULL;
 }
 
+static int ram_type_via_dmidecode(char *out, size_t size) {
+    
+    FILE *fp = popen("sudo -n dmidecode -t 17 2>/dev/null", "r");
+    if (!fp) return 0;
+
+    char line[256];
+    int found = 0;
+    while (fgets(line, sizeof(line), fp)) {
+        char *p = strstr(line, "Type:");
+        if (p && !strstr(line, "Type Detail")) {
+            p += 5;
+            while (*p == ' ' || *p == '\t') p++;
+            p[strcspn(p, "\n")] = 0;
+            if (*p && strcmp(p, "Unknown") != 0) {
+                strncpy(out, p, size - 1);
+                out[size - 1] = '\0';
+                found = 1;
+                break;
+            }
+        }
+    }
+    pclose(fp);
+    return found;
+}
+
 static void get_ram_type(char *out, size_t size) {
     strncpy(out, "N/A", size);
+
+   
+    if (ram_type_via_dmidecode(out, size)) return;
 
     FILE *fp = fopen("/sys/firmware/dmi/tables/DMI", "rb");
     if (!fp) return;
@@ -269,9 +297,15 @@ static void get_screen_info(char *out, size_t size) {
     DIR *d = opendir("/sys/class/drm");
     if (!d) return;
 
+    long best_area = 0;
+    char best_mode[64] = "";
+
     struct dirent *entry;
     while ((entry = readdir(d)) != NULL) {
         if (entry->d_name[0] == '.') continue;
+
+        
+        if (strstr(entry->d_name, "Writeback") || strstr(entry->d_name, "Virtual")) continue;
 
         char status_path[PATH_MAX];
         snprintf(status_path, sizeof(status_path), "/sys/class/drm/%s/status", entry->d_name);
@@ -290,17 +324,31 @@ static void get_screen_info(char *out, size_t size) {
         FILE *mf = fopen(modes_path, "r");
         if (!mf) continue;
 
-        char mode[64] = "";
-        if (fgets(mode, sizeof(mode), mf)) {
+        
+        char mode[64];
+        while (fgets(mode, sizeof(mode), mf)) {
             mode[strcspn(mode, "\n")] = 0;
-            strncpy(out, mode, size - 1);
-            out[size - 1] = '\0';
+
+            int w = 0, h = 0;
+            if (sscanf(mode, "%dx%d", &w, &h) == 2 && w > 0 && h > 0) {
+                long area = (long)w * (long)h;
+                if (area > best_area) {
+                    best_area = area;
+                    strncpy(best_mode, mode, sizeof(best_mode) - 1);
+                    best_mode[sizeof(best_mode) - 1] = '\0';
+                }
+            }
+            
+            break;
         }
         fclose(mf);
-
-        if (out[0] != '\0' && strcmp(out, "N/A") != 0) break;
     }
     closedir(d);
+
+    if (best_area > 0) {
+        strncpy(out, best_mode, size - 1);
+        out[size - 1] = '\0';
+    }
 }
 
 static int parse_vendor_line(const char *line, char *vname, size_t vname_size) {
@@ -433,7 +481,30 @@ static int count_dir_entries(const char *path) {
     return count;
 }
 
+static int flatpak_count_via_cli(void) {
+
+    FILE *fp = popen("flatpak list --app --columns=application 2>/dev/null", "r");
+    if (!fp) return -1;
+
+    int count = 0;
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        if (line[strspn(line, " \t\r\n")] != '\0') count++;
+    }
+
+    int status = pclose(fp);
+    if (status != 0) return -1;
+    return count;
+}
+
 static void get_flatpak_count(char *out, size_t size) {
+    int cli_count = flatpak_count_via_cli();
+    if (cli_count >= 0) {
+        snprintf(out, size, "%d", cli_count);
+        return;
+    }
+
+    
     int total = 0;
     int checked_any = 0;
 
