@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <limits.h>
-#ifndef _WIN32
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
 #include <pwd.h>
 #endif
+
 #include <curl/curl.h>
 #include "sysinfo.h"
 
@@ -122,6 +126,20 @@ static void get_exe_dir(char *out, size_t size) {
     out[0] = '\0';
     if (size == 0) return;
 
+#ifdef _WIN32
+    DWORD len = GetModuleFileNameA(NULL, out, (DWORD)size);
+    if (len == 0 || len >= size) {
+        out[0] = '\0';
+        return;
+    }
+    char *slash = strrchr(out, '\\');
+    if (!slash) slash = strrchr(out, '/');
+    if (slash) {
+        *(slash + 1) = '\0';
+    } else {
+        out[0] = '\0';
+    }
+#else
     ssize_t len = readlink("/proc/self/exe", out, size - 1);
     if (len <= 0 || (size_t)len >= size) {
         out[0] = '\0';
@@ -135,6 +153,7 @@ static void get_exe_dir(char *out, size_t size) {
     } else {
         out[0] = '\0';
     }
+#endif
 }
 
 static int visible_len(const char *s) {
@@ -201,6 +220,22 @@ static const char *pick_ascii_name(const char *os_name) {
 }
 
 static void resolve_identity(const char **username_out, char *hostname, size_t hostname_size) {
+#ifdef _WIN32
+    static char win_user[256];
+    DWORD len = sizeof(win_user);
+    if (GetUserNameA(win_user, &len)) {
+        *username_out = win_user;
+    } else {
+        const char *env_user = getenv("USERNAME");
+        *username_out = env_user ? env_user : "user";
+    }
+
+    DWORD host_len = (DWORD)hostname_size;
+    if (!GetComputerNameA(hostname, &host_len)) {
+        const char *env_host = getenv("COMPUTERNAME");
+        snprintf(hostname, hostname_size, "%s", env_host ? env_host : "smartfetch");
+    }
+#else
     struct passwd *pw = getpwuid(getuid());
     if (pw && pw->pw_name) {
         *username_out = pw->pw_name;
@@ -212,6 +247,7 @@ static void resolve_identity(const char **username_out, char *hostname, size_t h
     if (gethostname(hostname, hostname_size) != 0 || strlen(hostname) == 0) {
         snprintf(hostname, hostname_size, "smartfetch");
     }
+#endif
 }
 
 static void build_info_lines(char info_lines[SF_LINE_COUNT][SF_LINE_WIDTH],
