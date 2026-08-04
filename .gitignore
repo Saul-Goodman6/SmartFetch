@@ -4,3 +4,7 @@ C_code/*.o
 
 # Executables
 sfetch
+
+*.exe
+*.zip
+SmartFetch-v1.0-windows/
