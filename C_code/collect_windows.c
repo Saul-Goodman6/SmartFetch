@@ -174,6 +174,18 @@ static void get_os_uptime_win(char *out, size_t size) {
     out[size - 1] = '\0';
 }
 
+void print_color_palette(void) {
+    printf("   ");
+    for (int i = 0; i < 8; i++) {
+        printf("\033[4%dm   \033[0m", i);
+    }
+    printf("\n   ");
+    for (int i = 0; i < 8; i++) {
+        printf("\033[10%dm   \033[0m", i);
+    }
+    printf("\n");
+}
+
 void collect_system_data(SystemData *data) {
     get_os_name_win(data->os_name, sizeof(data->os_name));
     get_kernel_win(data->kernel, sizeof(data->kernel));
