@@ -3,7 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#ifndef _WIN32
 #include <pwd.h>
+#endif
 #include <curl/curl.h>
 #include "sysinfo.h"
 
